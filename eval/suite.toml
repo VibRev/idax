@@ -142,9 +142,9 @@ allow = ["Bash(idax *)", "Bash(grep *)", "Bash(head *)", "Read", "Grep"]
 max_turns = 30
 
 # Full eval: each harness with and without the idax skill. Claude Code runs
-# with dontAsk, so anything not allowed is refused: `cd <ws> && idax ...`,
-# temporary scripts written in the workspace and the usual read-only shell
-# tools are allowed, as an agent would use them.
+# with `--permission-mode auto`; the allow list below names what an agent
+# would use: `cd <ws> && idax ...`, temporary scripts written in the
+# workspace and the usual read-only shell tools.
 [[group]]
 name = "claude"
 harness = "claude"
