@@ -27,8 +27,8 @@ cd idax && IDADIR=/path/to/ida-pro-9.4 cargo build --release
 
 - **只支持 IDA 9.4。** idalib 用的是 `blacktop/idalib` 的 `sdk-9.4.0` 分支，固定在 rev `a174a5c`。
 - **IDA 安装目录**：`IDADIR` 指向它；不设时用 IDA 安装程序的默认位置 `~/ida-pro-9.4`。
-  - build.rs 会把这个路径写进 rpath，运行时不用设 `LD_LIBRARY_PATH`。
-  - 找不到安装时改为链接 SDK 自带的 stub。这样编出来的二进制命令行和单元测试都能用，但打不开数据库。
+  - build.rs 在 Linux、macOS 上把这个路径写进 rpath，运行时不用设 `LD_LIBRARY_PATH`（Windows 见下）。
+  - 找不到安装时改为链接 SDK 自带的 stub：能编译、能过 clippy（CI 就这样跑），但编出来的二进制跑不起来，测试需要真的 IDA。
 - **版本检查**：worker 启动时会检查实际加载的 IDA 版本，不是 9.4 就报 `engine_error`。
 - **Python**：只用 IDA 自带的 IDAPython，不需要额外安装 Python 包。
 
@@ -37,7 +37,14 @@ cd idax && IDADIR=/path/to/ida-pro-9.4 cargo build --release
 - **Linux**
 - **macOS**（实测 macOS 15 / Apple Silicon）：`IDADIR` 指向 app 里放 dylib 的目录，即 `export IDADIR="/Applications/IDA Professional 9.4.app/Contents/MacOS"`，rpath 同样会写进二进制。
 
-daemon 用 Unix socket，worker 依赖 fd 重定向。
+- **Windows**（10 1803 及以上，x86_64；尚未在真机上验证）：
+  - `IDADIR` 默认 `C:\Program Files\IDA Professional 9.4`；构建需要 MSVC 与 LLVM（bindgen 用 libclang）。
+  - Windows 没有 rpath：运行时 IDA 安装目录要在 `PATH` 上（`$env:PATH = "$env:IDADIR;$env:PATH"`），否则 idax 起不来，连 `--help` 也一样。
+  - 取消正在跑的脚本靠 IDA 所载 Python 的 `PyErr_SetInterrupt`（Windows 没有能发给进程的 SIGINT），脚本里同样抛出 `KeyboardInterrupt`。
+  - skill 和示例里的命令是 bash 写法。PowerShell 里单引号同样不展开，`idax exec fw.bin 'len(list(idautils.Functions()))'` 照抄能用；代码里本身有单引号时，PowerShell 要写成两个单引号，或改用 `-f FILE` / `-`（stdin）。
+  - `ref` 列出的 `grep` 命令在 Git Bash 里能直接用，PowerShell 里换成 `Select-String`。
+
+daemon 用 Unix socket（Windows 上是原生 AF_UNIX）。
 
 ## 命令
 

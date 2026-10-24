@@ -1,7 +1,10 @@
-//! Link against the IDA 9.4 install in `$IDADIR` (default `~/ida-pro-9.4`),
-//! with an rpath to it so the binary runs without `LD_LIBRARY_PATH`. Without
+//! Link against the IDA 9.4 install in `$IDADIR` (default: the installer's
+//! location, `~/ida-pro-9.4`, the macOS app, or
+//! `C:\Program Files\IDA Professional 9.4`). On Linux and macOS an rpath to
+//! it lets the binary run without `LD_LIBRARY_PATH`; Windows has no rpath,
+//! so there the install directory must be on `PATH` when idax runs. Without
 //! an install the SDK's stub libraries link instead; such a binary builds and
-//! tests its CLI but cannot open a database.
+//! passes clippy (CI does this) but does not run: the stubs are not IDA.
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("cargo::rerun-if-env-changed=IDADIR");
     let (_, ida, idalib) = idalib_build::idalib_install_paths_with(false);

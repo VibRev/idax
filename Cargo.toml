@@ -12,9 +12,14 @@ categories = ["command-line-utilities"]
 [dependencies]
 axkit = { version = "0.1.0", path = "../axkit" }
 idalib = { git = "https://github.com/blacktop/idalib.git", rev = "a174a5c5150ef68613c4c306240e9d0c2969681b", version = "0.7.5" }
-libc = "0.2.191"
 rex = { path = "../rex" }
 serde_json = "1.0.154"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2.191"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61.2", features = ["Win32_System_LibraryLoader"] }
 
 [lints.clippy]
 unwrap_used = "warn"

@@ -132,10 +132,38 @@ impl Ida {
 
 /// Raise SIGINT in this process: Python's handler turns it into a
 /// `KeyboardInterrupt` in the running script.
+#[cfg(unix)]
 fn interrupt() {
     // SAFETY: kill only sends a signal; the prelude installed the handler.
     unsafe {
         libc::kill(libc::getpid(), libc::SIGINT);
+    }
+}
+
+/// Windows has no SIGINT to send a process: ask the Python runtime IDA
+/// loaded to act as if one arrived (`PyErr_SetInterrupt`, safe from any
+/// thread), which the prelude's handler turns into a `KeyboardInterrupt`.
+#[cfg(windows)]
+fn interrupt() {
+    use windows_sys::Win32::System::LibraryLoader::{GetModuleHandleW, GetProcAddress};
+
+    let wide = |s: &str| s.encode_utf16().chain([0]).collect::<Vec<u16>>();
+    // The versioned DLL holds the runtime; `python3.dll` only forwards to it.
+    let names = (8..=20).rev().map(|minor| format!("python3{minor}.dll")).chain(["python3.dll".to_owned()]);
+    for name in names {
+        // SAFETY: a NUL-terminated name; a module is only looked up, not loaded.
+        let module = unsafe { GetModuleHandleW(wide(&name).as_ptr()) };
+        if module.is_null() {
+            continue;
+        }
+        // SAFETY: a NUL-terminated symbol name, looked up in a loaded module.
+        if let Some(set_interrupt) = unsafe { GetProcAddress(module, c"PyErr_SetInterrupt".as_ptr().cast()) } {
+            // SAFETY: `void PyErr_SetInterrupt(void)` in every Python 3.
+            let set_interrupt: unsafe extern "C" fn() = unsafe { std::mem::transmute(set_interrupt) };
+            // SAFETY: documented as callable without the GIL, from any thread.
+            unsafe { set_interrupt() };
+            return;
+        }
     }
 }
 

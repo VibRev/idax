@@ -1,0 +1,40 @@
+name: ci
+on:
+  push:
+  pull_request:
+
+# No IDA install on the runners: build.rs links the SDK's stub libraries, so
+# the code is formatted, compiled and linted, but the tests (which need
+# idalib, and skip themselves without it) are left to machines with IDA.
+jobs:
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    # Windows builds against the SDK's import libraries, untested so far.
+    continue-on-error: ${{ matrix.os == 'windows-latest' }}
+    defaults:
+      run:
+        working-directory: idax
+    steps:
+      # idax depends on `../axkit` and `../rex`: check them out side by side.
+      - uses: actions/checkout@v4
+        with:
+          path: idax
+          submodules: recursive
+      - uses: actions/checkout@v4
+        with:
+          repository: VibRev/axkit
+          path: axkit
+      - uses: actions/checkout@v4
+        with:
+          repository: VibRev/rex
+          path: rex
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - if: runner.os == 'Linux'
+        run: cargo fmt --check
+      - run: cargo clippy --all-targets -- -D warnings
