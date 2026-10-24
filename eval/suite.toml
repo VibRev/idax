@@ -1,0 +1,307 @@
+# idax task set for axkit-eval. The agent is given one tool, idax, and asked a
+# reverse-engineering question about an ARM64 fixture. Ground truth is a
+# recovered string or a persisted database change, so judging does not depend
+# on addresses that shift between builds or engines. The same fixtures and
+# questions appear in bnx/eval/suite.toml for a side-by-side read.
+
+[suite]
+name = "idax-re"
+# The command agents call; `axkit-eval replay` picks its calls from streams.
+tool = "idax"
+# What `{tool}` says in prompts; MCP groups say their own.
+tool_phrase = "the idax CLI (already on PATH; run `idax --help`)"
+# Build the stripped ARM64 fixtures before any run.
+setup = ["make -C fixtures"]
+# Put the freshly built idax on PATH so the agent calls it by bare name.
+path = ["../target/debug"]
+# Appended to every prompt.
+rules = """
+Rules for this task: do not copy, move or read license files (for example \
+*.hexlic or license.dat), and do not change HOME, IDAUSR or the engine's user \
+directory. If the tool you were given cannot run (it does not start, a license or \
+permission error), report that instead of working around it. Errors from your \
+own scripts (a wrong name, an exception) are normal: read the hint and go on."""
+teardown = ["idax daemon stop --force >/dev/null 2>&1 || true"]
+
+[suite.env]
+# Each run gets its own daemon runtime and cache, cleaned with the out dir.
+IDAX_RUNTIME_DIR = "{tmp}/rt"
+XDG_CACHE_HOME = "{tmp}/cache"
+# Agent mode, so idax applies its bounded-output defaults.
+AXKIT_AGENT = "on"
+
+# --- Tasks, easy to hard ---------------------------------------------------
+
+[[task]]
+id = "password"
+prompt = """
+The file {ws}/crackme is an ARM64 program that checks a command-line password. \
+Use {tool} to find the exact password \
+string it compares against, and state it verbatim."""
+files = ["fixtures/crackme"]
+[task.judge]
+contains = ["s3cret_42"]
+
+[[task]]
+id = "xor-flag"
+prompt = """
+{ws}/xorflag decodes a hidden flag at runtime; the plaintext is not stored in \
+the binary. Use {tool} to read the code or data, work out the decoding, and report \
+the flag. It has the form FLAG{{...}}."""
+files = ["fixtures/xorflag"]
+[task.judge]
+contains = ["FLAG{xor_ok}"]
+
+[[task]]
+id = "add-cipher"
+prompt = """
+{ws}/addcipher prints a credential that is obfuscated in the binary (each byte \
+shifted by a constant). Use {tool} to recover the plaintext credential, which looks \
+like user:password. Report it verbatim."""
+files = ["fixtures/addcipher"]
+[task.judge]
+contains = ["admin:hunter2"]
+excludes = ["hunter20", "hunter21"]
+
+[[task]]
+id = "calls-system"
+prompt = """
+Exactly one function in {ws}/syscaller calls libc system(). Use {tool} to find it \
+and report that function's start address as a hex value like 0x401234. Also say \
+which library function it passes control to."""
+files = ["fixtures/syscaller"]
+timeout = 1200
+[task.judge]
+# The caller is spawn_shell at 0x848 in the prebuilt fixture: IDA loads the
+# PIE at 0, Binary Ninja at 0x400000. Rebuilding the fixture moves it.
+regex = "0x(0*848|400848)\\b"
+contains = ["system"]
+
+[[task]]
+id = "rename-save"
+prompt = """
+In {ws}/renameme there is a small helper that main calls, which computes a + b + 1. \
+Use {tool} to find that function, rename it to decrypt_me, and save the database so \
+the name persists. Report the address you renamed."""
+files = ["fixtures/renameme"]
+timeout = 1200
+[task.judge]
+# The agent must have produced a persisted database beside the target whose
+# symbol table now contains the new name.
+command = ["sh", "{suite}/fixtures/check_rename.sh"]
+
+[[task]]
+id = "spill-needle"
+prompt = """
+{ws}/manyfuncs has about 60 functions. Exactly one of them returns a distinctive \
+string constant containing the token needle_ followed by hex. List the strings or \
+functions with {tool}, page through the output if it is truncated, and report the full token."""
+files = ["fixtures/manyfuncs"]
+timeout = 1200
+[task.judge]
+contains = ["needle_7f3a_marker"]
+
+[[task]]
+id = "long-function"
+prompt = """
+{ws}/longfunc builds a secret string at runtime inside one very large \
+function; the string is never stored whole in the binary. Use {tool} to read \
+that function, work out what it writes and how main prints it, and report the \
+string. It has the form LONG{{...}}."""
+files = ["fixtures/longfunc"]
+timeout = 1200
+[task.judge]
+# The function decompiles to ~930 lines (~40 KB): far past the 8 KB agent
+# window, so the answer is only in the spilled full output. Its bytes are
+# stored two apart in shuffled order, so no single line holds the string.
+contains = ["LONG{spill_files_are_read_9b2e}"]
+
+# --- Groups ----------------------------------------------------------------
+# `ref` points the agent at the engine's install dir (Python API, examples) to
+# grep, so every group may read and search anywhere except other agents'
+# homes, which each adapter denies on its own.
+
+# Smoke: the cheapest model of each harness, one task.
+[[group]]
+name = "smoke-claude"
+harness = "claude"
+model = "haiku"
+tools = ["Bash", "Read", "Grep", "Glob", "Write", "Edit"]
+max_turns = 30
+
+[[group]]
+name = "smoke-codex"
+harness = "codex"
+# The user's default model at low effort, so a smoke run stays cheap.
+args = ["-c", "model_reasoning_effort=\"low\""]
+
+[[group]]
+name = "smoke-grok"
+harness = "grok"
+allow = ["Bash(idax *)", "Bash(grep *)", "Bash(head *)", "Read", "Grep"]
+max_turns = 30
+
+# Full eval: each harness with and without the idax skill. Claude Code runs
+# with dontAsk, so anything not allowed is refused: `cd <ws> && idax ...`,
+# temporary scripts written in the workspace and the usual read-only shell
+# tools are allowed, as an agent would use them.
+[[group]]
+name = "claude"
+harness = "claude"
+model = "sonnet"
+tools = ["Bash", "Read", "Grep", "Glob", "Write", "Edit"]
+max_turns = 40
+
+[[group]]
+name = "claude-skill"
+harness = "claude"
+model = "sonnet"
+skill = { command = "idax skills", name = "idax" }
+tools = ["Bash", "Read", "Grep", "Glob", "Write", "Edit"]
+max_turns = 40
+
+[[group]]
+name = "codex"
+harness = "codex"
+
+[[group]]
+name = "codex-skill"
+harness = "codex"
+skill = { command = "idax skills", name = "idax" }
+
+[[group]]
+name = "grok"
+harness = "grok"
+allow = ["Bash(idax *)", "Bash(grep *)", "Bash(head *)", "Read", "Grep"]
+max_turns = 40
+
+[[group]]
+name = "grok-skill"
+harness = "grok"
+skill = { command = "idax skills", name = "idax" }
+allow = ["Bash(idax *)", "Bash(grep *)", "Bash(head *)", "Read", "Grep"]
+max_turns = 40
+
+# --- CLI vs MCP --------------------------------------------------------------
+# The same tasks through an MCP server instead of idax. Server locations are
+# machine-specific, so they come from the runner's environment:
+#   AXEVAL_IDA_MCP           the official Hex-Rays `ida-mcp` executable (a venv)
+#   AXEVAL_IDA_HEADLESS_MCP  an `ida-headless-mcp` build
+# Each server keeps its state in the run's tmp dir. The agent gets no CLI on
+# PATH and no shell where the harness allows that: claude without Bash, grok
+# without its terminal, codex with a read-only sandbox.
+[[group]]
+name = "claude-idamcp"
+harness = "claude"
+model = "sonnet"
+tools = ["Read", "Grep", "Glob"]
+max_turns = 40
+bare_path = true
+tool = "the IDA tools of the MCP server `ida`"
+rules = """
+Use only the MCP tools of server `ida` for the analysis. Do not run IDA, \
+idalib, Python or any other analysis program yourself."""
+mcp = { name = "ida", command = "{env:AXEVAL_IDA_MCP}", args = ["stdio", "--agent=axeval"], env = { IDA_NEXUS_IDALIB_ONLY = "1", IDA_MCP_STATE_DIR = "{tmp}/ida-mcp", IDA_NEXUS_STATE_DIR = "{tmp}/ida-nexus" } }
+
+[[group]]
+name = "codex-idamcp"
+harness = "codex"
+sandbox = "read-only"
+bare_path = true
+tool = "the IDA tools of the MCP server `ida`"
+rules = """
+Use only the MCP tools of server `ida` for the analysis. Do not run IDA, \
+idalib, Python or any other analysis program yourself; shell commands are only \
+for viewing files."""
+mcp = { name = "ida", command = "{env:AXEVAL_IDA_MCP}", args = ["stdio", "--agent=axeval"], env = { IDA_NEXUS_IDALIB_ONLY = "1", IDA_MCP_STATE_DIR = "{tmp}/ida-mcp", IDA_NEXUS_STATE_DIR = "{tmp}/ida-nexus" } }
+
+[[group]]
+name = "grok-idamcp"
+harness = "grok"
+tools = ["read_file", "grep", "list_dir"]
+max_turns = 40
+bare_path = true
+tool = "the IDA tools of the MCP server `ida`"
+rules = """
+Use only the MCP tools of server `ida` for the analysis. Do not run IDA, \
+idalib, Python or any other analysis program yourself."""
+mcp = { name = "ida", command = "{env:AXEVAL_IDA_MCP}", args = ["stdio", "--agent=axeval"], env = { IDA_NEXUS_IDALIB_ONLY = "1", IDA_MCP_STATE_DIR = "{tmp}/ida-mcp", IDA_NEXUS_STATE_DIR = "{tmp}/ida-nexus" } }
+
+[[group]]
+name = "claude-ihmcp"
+harness = "claude"
+model = "sonnet"
+tools = ["Read", "Grep", "Glob"]
+max_turns = 40
+bare_path = true
+tool = "the IDA tools of the MCP server `ida`"
+rules = """
+Use only the MCP tools of server `ida` for the analysis. Do not run IDA, \
+idalib, Python or any other analysis program yourself."""
+mcp = { name = "ida", command = "{env:AXEVAL_IDA_HEADLESS_MCP}", args = ["serve", "--mode", "stdio"] }
+
+[[group]]
+name = "codex-ihmcp"
+harness = "codex"
+sandbox = "read-only"
+bare_path = true
+tool = "the IDA tools of the MCP server `ida`"
+rules = """
+Use only the MCP tools of server `ida` for the analysis. Do not run IDA, \
+idalib, Python or any other analysis program yourself; shell commands are only \
+for viewing files."""
+mcp = { name = "ida", command = "{env:AXEVAL_IDA_HEADLESS_MCP}", args = ["serve", "--mode", "stdio"] }
+
+[[group]]
+name = "grok-ihmcp"
+harness = "grok"
+tools = ["read_file", "grep", "list_dir"]
+max_turns = 40
+bare_path = true
+tool = "the IDA tools of the MCP server `ida`"
+rules = """
+Use only the MCP tools of server `ida` for the analysis. Do not run IDA, \
+idalib, Python or any other analysis program yourself."""
+mcp = { name = "ida", command = "{env:AXEVAL_IDA_HEADLESS_MCP}", args = ["serve", "--mode", "stdio"] }
+
+# --- idax as a code-mode MCP server ------------------------------------------
+# `idax mcp`: the same engine and daemon as the CLI behind a stdio MCP server
+# (tools exec, ref, save, close, list). Set up like the MCP groups above: no
+# CLI on PATH, no skill, no shell where the harness allows that. The server
+# shares the run's runtime dir, so the suite's teardown stops its daemon.
+[[group]]
+name = "claude-mcp"
+harness = "claude"
+model = "sonnet"
+tools = ["Read", "Grep", "Glob"]
+max_turns = 40
+bare_path = true
+tool = "the tools of the MCP server `idax`"
+rules = """
+Use only the MCP tools of server `idax` for the analysis. Do not run IDA, \
+Python or any other analysis program yourself."""
+mcp = { name = "idax", command = "{suite}/../target/debug/idax", args = ["mcp"], env = { IDAX_RUNTIME_DIR = "{tmp}/rt", XDG_CACHE_HOME = "{tmp}/cache", AXKIT_AGENT = "on" } }
+
+[[group]]
+name = "codex-mcp"
+harness = "codex"
+sandbox = "read-only"
+bare_path = true
+tool = "the tools of the MCP server `idax`"
+rules = """
+Use only the MCP tools of server `idax` for the analysis. Do not run IDA, \
+Python or any other analysis program yourself; shell commands are only for \
+viewing files."""
+mcp = { name = "idax", command = "{suite}/../target/debug/idax", args = ["mcp"], env = { IDAX_RUNTIME_DIR = "{tmp}/rt", XDG_CACHE_HOME = "{tmp}/cache", AXKIT_AGENT = "on" } }
+
+[[group]]
+name = "grok-mcp"
+harness = "grok"
+tools = ["read_file", "grep", "list_dir"]
+max_turns = 40
+bare_path = true
+tool = "the tools of the MCP server `idax`"
+rules = """
+Use only the MCP tools of server `idax` for the analysis. Do not run IDA, \
+Python or any other analysis program yourself."""
+mcp = { name = "idax", command = "{suite}/../target/debug/idax", args = ["mcp"], env = { IDAX_RUNTIME_DIR = "{tmp}/rt", XDG_CACHE_HOME = "{tmp}/cache", AXKIT_AGENT = "on" } }

@@ -1,0 +1,34 @@
+[package]
+name = "idax"
+version = "0.2.0"
+edition = "2024"
+rust-version = "1.95"
+description = "IDA Pro from the command line, for agents: sessions in a daemon, Python for everything else"
+license = "Apache-2.0"
+repository = "https://github.com/VibRev/idax"
+keywords = ["reverse-engineering", "cli", "agent", "ida"]
+categories = ["command-line-utilities"]
+
+[dependencies]
+axkit = { version = "0.1.0", path = "../axkit" }
+idalib = { git = "https://github.com/blacktop/idalib.git", rev = "a174a5c5150ef68613c4c306240e9d0c2969681b", version = "0.7.5" }
+libc = "0.2.191"
+rex = { path = "../rex" }
+serde_json = "1.0.154"
+
+[lints.clippy]
+unwrap_used = "warn"
+cast_possible_truncation = "warn"
+needless_pass_by_value = "warn"
+fn_params_excessive_bools = "warn"
+undocumented_unsafe_blocks = "warn"
+missing_errors_doc = "warn"
+missing_panics_doc = "warn"
+wildcard_imports = "warn"
+return_self_not_must_use = "warn"
+
+[build-dependencies]
+idalib-build = { git = "https://github.com/blacktop/idalib.git", rev = "a174a5c5150ef68613c4c306240e9d0c2969681b", version = "0.7.5" }
+
+[dev-dependencies]
+tempfile = "3.27.0"
