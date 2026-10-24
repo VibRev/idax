@@ -184,7 +184,7 @@ cargo fmt --check
 
 - 自动分析的百分比进度
 - 兼容 ida-nexus 的实例发现协议，接管 GUI 里已经打开的库
-- Windows
+- 在真 Windows 机器上验证（目前只做了交叉编译和 CI）；遇到问题请提 issue
 
 ## 许可
 
