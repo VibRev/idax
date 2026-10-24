@@ -10,7 +10,6 @@
 
 use std::fs;
 use std::io::Write;
-use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::Duration;
@@ -37,7 +36,12 @@ impl Env {
         let dir = tempfile::tempdir().unwrap();
         for sub in ["run", "cache", "work"] {
             fs::create_dir(dir.path().join(sub)).unwrap();
-            fs::set_permissions(dir.path().join(sub), fs::Permissions::from_mode(0o700)).unwrap();
+            // The daemon refuses a runtime dir others can enter.
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                fs::set_permissions(dir.path().join(sub), fs::Permissions::from_mode(0o700)).unwrap();
+            }
         }
         fs::copy(small_elf(), dir.path().join("work/true")).unwrap();
         Some(Env { dir })
@@ -240,7 +244,10 @@ fn a_client_that_goes_away_interrupts_its_script_and_keeps_the_session() {
 #[test]
 fn every_spelling_of_a_target_is_one_session() {
     let Some(env) = Env::new() else { return };
+    #[cfg(unix)]
     std::os::unix::fs::symlink(env.work().join("true"), env.work().join("link")).unwrap();
+    #[cfg(windows)]
+    std::os::windows::fs::symlink_file(env.work().join("true"), env.work().join("link")).unwrap();
     env.idax(&["exec", "true", "-c", "1"]);
     let again = env.idax(&["exec", "./link", "-c", "1"]);
     assert!(!again.stderr.contains("# progress: opening"), "{}", again.stderr);
