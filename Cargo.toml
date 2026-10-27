@@ -11,7 +11,7 @@ categories = ["command-line-utilities"]
 
 [dependencies]
 axkit = { version = "0.1.0", path = "../axkit" }
-idalib = { git = "https://github.com/blacktop/idalib.git", rev = "a174a5c5150ef68613c4c306240e9d0c2969681b", version = "0.7.5" }
+idalib = { git = "https://github.com/blacktop/idalib.git", rev = "acc1f6f364c5b4fc6df73096252c889b80d0c77c", version = "0.7.6" }
 rex = { path = "../rex" }
 serde_json = "1.0.154"
 
@@ -33,7 +33,7 @@ wildcard_imports = "warn"
 return_self_not_must_use = "warn"
 
 [build-dependencies]
-idalib-build = { git = "https://github.com/blacktop/idalib.git", rev = "a174a5c5150ef68613c4c306240e9d0c2969681b", version = "0.7.5" }
+idalib-build = { git = "https://github.com/blacktop/idalib.git", rev = "acc1f6f364c5b4fc6df73096252c889b80d0c77c", version = "0.7.6" }
 
 [dev-dependencies]
 tempfile = "3.27.0"

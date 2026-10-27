@@ -1,6 +1,6 @@
 # pitfalls: IDAPython without a UI, under idax
 ## deprecated names
-IDA 9.4 deprecates the func_t-taking calls (ida_funcs.get_func, calc_func_size, get_func_ranges, ...) in favour of ones taking an address (get_func_start, calc_func_size_ea, get_func_ranges_ea); the old ones still work but print a DeprecationWarning on stderr naming the new one.
+Since IDA 9.4, IDA deprecates the func_t-taking calls (ida_funcs.get_func, calc_func_size, get_func_ranges, ...) in favour of ones taking an address (get_func_start, calc_func_size_ea, get_func_ranges_ea); the old ones still work but print a DeprecationWarning on stderr naming the new one.
     idax exec fw.bin 'ea = idc.get_name_ea_simple("check"); hex(ida_funcs.get_func_start(ea + 4)), ida_funcs.calc_func_size_ea(ea)'
 ## rename a function or address
 ida_name.set_name(ea, "new_name") names any address, a function's start included; it returns False when the name is taken or invalid. The example puts the old name back.

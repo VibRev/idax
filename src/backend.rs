@@ -15,7 +15,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 /// The engine idax is built for (rex §0.1).
-pub const IDA_VERSION: (i32, i32) = (9, 4);
+pub const IDA_VERSION: (i32, i32) = (9, 5);
 
 const PRELUDE: &str = include_str!("prelude.py");
 

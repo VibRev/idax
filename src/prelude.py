@@ -23,7 +23,7 @@ import signal
 import sys
 import traceback
 
-# Imported into every script's namespace, those IDA 9.4 has.
+# Imported into every script's namespace, those IDA 9.5 has.
 _MODULES = (
     "idaapi", "idc", "idautils", "ida_auto", "ida_bytes", "ida_entry", "ida_frame", "ida_funcs", "ida_gdl",
     "ida_hexrays", "ida_ida", "ida_lines", "ida_loader", "ida_nalt", "ida_name", "ida_segment", "ida_strlist",

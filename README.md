@@ -1,6 +1,6 @@
 # idax
 
-IDA Pro 9.4 for agents: a persistent headless session scripted in native IDAPython, as a CLI and a code-mode MCP server.
+IDA Pro 9.5 for agents: a persistent headless session scripted in native IDAPython, as a CLI and a code-mode MCP server.
 
 idax 是给 agent 用的 IDA Pro 命令行工具。二进制只在后台 daemon 里打开一次，之后的查询和修改都写成 Python 脚本，直接调用 IDA 原生的 IDAPython API。
 
@@ -22,23 +22,23 @@ mkdir VibRev && cd VibRev
 git clone https://github.com/VibRev/axkit
 git clone https://github.com/VibRev/rex
 git clone https://github.com/VibRev/idax
-cd idax && IDADIR=/path/to/ida-pro-9.4 cargo build --release
+cd idax && IDADIR=/path/to/ida-pro-9.5 cargo build --release
 ```
 
-- **只支持 IDA 9.4。** idalib 用的是 `blacktop/idalib` 的 `sdk-9.4.0` 分支，固定在 rev `a174a5c`。
-- **IDA 安装目录**：`IDADIR` 指向它；不设时用 IDA 安装程序的默认位置 `~/ida-pro-9.4`。
+- **只支持 IDA 9.5。** idalib 用的是 `blacktop/idalib` 的 `sdk-9.5` 分支，固定在 rev `acc1f6f`。
+- **IDA 安装目录**：`IDADIR` 指向它；不设时用 IDA 安装程序的默认位置 `~/ida-pro-9.5`。
   - build.rs 在 Linux、macOS 上把这个路径写进 rpath，运行时不用设 `LD_LIBRARY_PATH`（Windows 见下）。
   - 找不到安装时改为链接 SDK 自带的 stub：能编译、能过 clippy（CI 就这样跑），但编出来的二进制跑不起来，测试需要真的 IDA。
-- **版本检查**：worker 启动时会检查实际加载的 IDA 版本，不是 9.4 就报 `engine_error`。
+- **版本检查**：worker 启动时会检查实际加载的 IDA 版本，不是 9.5 就报 `engine_error`。
 - **Python**：只用 IDA 自带的 IDAPython，不需要额外安装 Python 包。
 
 ## 平台
 
 - **Linux**
-- **macOS**（实测 macOS 15 / Apple Silicon）：`IDADIR` 指向 app 里放 dylib 的目录，即 `export IDADIR="/Applications/IDA Professional 9.4.app/Contents/MacOS"`，rpath 同样会写进二进制。
+- **macOS**（实测 macOS 15 / Apple Silicon）：`IDADIR` 指向 app 里放 dylib 的目录，即 `export IDADIR="/Applications/IDA Professional 9.5.app/Contents/MacOS"`，rpath 同样会写进二进制。
 
 - **Windows**（10 1803 及以上，x86_64；尚未在真机上验证）：
-  - `IDADIR` 默认 `C:\Program Files\IDA Professional 9.4`；构建需要 MSVC 与 LLVM（bindgen 用 libclang）。
+  - `IDADIR` 默认 `C:\Program Files\IDA Professional 9.5`；构建需要 MSVC 与 LLVM（bindgen 用 libclang）。
   - Windows 没有 rpath：运行时 IDA 安装目录要在 `PATH` 上（`$env:PATH = "$env:IDADIR;$env:PATH"`），否则 idax 起不来，连 `--help` 也一样。
   - 取消正在跑的脚本靠 IDA 所载 Python 的 `PyErr_SetInterrupt`（Windows 没有能发给进程的 SIGINT），脚本里同样抛出 `KeyboardInterrupt`。
   - skill 和示例里的命令是 bash 写法。PowerShell 里单引号同样不展开，`idax exec fw.bin 'len(list(idautils.Functions()))'` 照抄能用；代码里本身有单引号时，PowerShell 要写成两个单引号，或改用 `-f FILE` / `-`（stdin）。
@@ -85,7 +85,7 @@ daemon 用 Unix socket（Windows 上是原生 AF_UNIX）。
 
 - `exec`：命名空间、结果、错误；
 - `session`：会话；
-- `pitfalls`：IDA 9.4 的弃用、BADADDR、PLT stub、改名、headless 下的坑。
+- `pitfalls`：IDA 9.4 起的弃用、BADADDR、PLT stub、改名、headless 下的坑。
 
 IDA 的 API 参考和官方示例不打包，而是在运行时实际加载的那份安装里现查。
 
@@ -167,7 +167,7 @@ frontmatter 里的 `metadata.version` 与 `idax --version` 相同，agent 拿已
 
 ```sh
 cargo clippy --all-targets
-cargo test          # 有 IDA 9.4 时，集成测试会真正跑 IDA
+cargo test          # 有 IDA 9.5 时，集成测试会真正跑 IDA
 cargo fmt --check
 ```
 

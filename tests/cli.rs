@@ -1,4 +1,4 @@
-//! idax against a real IDA 9.4: open, exec, status, save, close through the
+//! idax against a real IDA 9.5: open, exec, status, save, close through the
 //! daemon, as an agent would run them.
 //!
 //! Every test gets its own daemon (private runtime and cache directories).
@@ -28,9 +28,9 @@ impl Env {
     /// `None` without an IDA install to run against.
     fn new() -> Option<Env> {
         let ida =
-            std::env::var_os("IDADIR").map_or_else(|| PathBuf::from(std::env::var_os("HOME").unwrap()).join("ida-pro-9.4"), PathBuf::from);
+            std::env::var_os("IDADIR").map_or_else(|| PathBuf::from(std::env::var_os("HOME").unwrap()).join("ida-pro-9.5"), PathBuf::from);
         if !["libidalib.so", "libidalib.dylib"].iter().any(|lib| ida.join(lib).exists()) {
-            eprintln!("skipped: no IDA 9.4 install at {}", ida.display());
+            eprintln!("skipped: no IDA 9.5 install at {}", ida.display());
             return None;
         }
         let dir = tempfile::tempdir().unwrap();
