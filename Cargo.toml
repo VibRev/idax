@@ -10,9 +10,9 @@ keywords = ["reverse-engineering", "cli", "agent", "ida"]
 categories = ["command-line-utilities"]
 
 [dependencies]
-axkit = { version = "0.1.0", path = "../axkit" }
+axkit = { git = "https://github.com/VibRev/axkit.git", rev = "68a6e9e0aadd0b798b0af7d37020f261d5669a63", version = "0.1.0" }
 idalib = { git = "https://github.com/blacktop/idalib.git", rev = "acc1f6f364c5b4fc6df73096252c889b80d0c77c", version = "0.7.6" }
-rex = { path = "../rex" }
+rex = { git = "https://github.com/VibRev/rex.git", rev = "ebe81007bd9b01e9d3fe941f60a784e9083144fd", version = "0.1.0" }
 serde_json = "1.0.154"
 
 [target.'cfg(unix)'.dependencies]

@@ -204,6 +204,7 @@ dependencies = [
 [[package]]
 name = "axkit"
 version = "0.1.0"
+source = "git+https://github.com/VibRev/axkit.git?rev=68a6e9e0aadd0b798b0af7d37020f261d5669a63#68a6e9e0aadd0b798b0af7d37020f261d5669a63"
 dependencies = [
  "clap",
  "libc",
@@ -884,6 +885,7 @@ checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 [[package]]
 name = "rex"
 version = "0.1.0"
+source = "git+https://github.com/VibRev/rex.git?rev=ebe81007bd9b01e9d3fe941f60a784e9083144fd#ebe81007bd9b01e9d3fe941f60a784e9083144fd"
 dependencies = [
  "axkit",
  "clap",

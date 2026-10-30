@@ -15,23 +15,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     # Windows builds against the SDK's import libraries, untested so far.
     continue-on-error: ${{ matrix.os == 'windows-latest' }}
-    defaults:
-      run:
-        working-directory: idax
     steps:
-      # idax depends on `../axkit` and `../rex`: check them out side by side.
       - uses: actions/checkout@v4
         with:
-          path: idax
           submodules: recursive
-      - uses: actions/checkout@v4
-        with:
-          repository: VibRev/axkit
-          path: axkit
-      - uses: actions/checkout@v4
-        with:
-          repository: VibRev/rex
-          path: rex
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
